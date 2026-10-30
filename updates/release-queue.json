@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.5",
-  "android_filename": "Courtline-Tablet-v1.0.5-Options-PREVIEW.apk",
-  "android_sha256": "505520f2c38d22e772771c8a21eb675ad765f0cd6d18f0fe9701fb11dac122d1",
-  "ipad_filename": "Courtline-iPad-v1.0.5-Options-PREVIEW.zip",
-  "ipad_sha256": "4cb2c55a21bcad0331167d420ea73dfd0a50d205fb4268bbc0f1c45f5809c886",
-  "notes": "Options consolidates Updates, Themes, and About; update badge now on Options; Powered by Scoreholio below CourtLine."
+  "version": "1.0.6",
+  "android_filename": "Courtline-Tablet-v1.0.6-Options-Footer-PREVIEW.apk",
+  "android_sha256": "e0e285437b3a2e54fa29142d5bcb9d874d98319e8a41f7387f00581cf30c07c8",
+  "ipad_filename": "Courtline-iPad-v1.0.6-Options-Footer-PREVIEW.zip",
+  "ipad_sha256": "eaeb6ec75abb4ad5b2eba0816a140ffff746fbe5ff9e70662efb6c97a5264eb7",
+  "notes": "Remove About section; show version under divider in Options footer. Android package/signature and increasing versionCode preserved."
 }
