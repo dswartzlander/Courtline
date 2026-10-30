@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.2",
-  "android_filename": "Courtline-Tablet-v1.0.2-Scoreholio-Final-Placement.apk",
-  "android_sha256": "16ba1773e81230dda3ed92701360b2c6e8781b627f66e4dc11486e9d7c2df933",
-  "ipad_filename": "Courtline-iPad-v1.0.2-Scoreholio-Final-Placement.zip",
-  "ipad_sha256": "5a7c2597699e325dcaf4dd3f7b63a3dbedff4abecd36abcd4d2c0ad3fa4c9010",
-  "notes": "Scoreholio sponsor lockup text starts below the I in LINE; logo adjacent. Android and iPad."
+  "version": "1.0.3",
+  "android_filename": "Courtline-Tablet-v1.0.3-Scoreholio-Spacing.apk",
+  "android_sha256": "a0e90643b194280c49f56971f9e05a72b9aa74247b4d24fd428798f7cb5b3203",
+  "ipad_filename": "Courtline-iPad-v1.0.3-Scoreholio-Spacing.zip",
+  "ipad_sha256": "98e42e5641ffd874070d20051e8c1e013d6c15c6cb249da0cac76ff92a68461d",
+  "notes": "Final vertical alignment of Powered by Scoreholio with version line only; no navigation or other UI changes."
 }
