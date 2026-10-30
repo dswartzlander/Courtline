@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.3",
-  "android_filename": "Courtline-Tablet-v1.0.3-Scoreholio-Spacing.apk",
-  "android_sha256": "a0e90643b194280c49f56971f9e05a72b9aa74247b4d24fd428798f7cb5b3203",
-  "ipad_filename": "Courtline-iPad-v1.0.3-Scoreholio-Spacing.zip",
-  "ipad_sha256": "98e42e5641ffd874070d20051e8c1e013d6c15c6cb249da0cac76ff92a68461d",
-  "notes": "Final vertical alignment of Powered by Scoreholio with version line only; no navigation or other UI changes."
+  "version": "1.0.5",
+  "android_filename": "Courtline-Tablet-v1.0.5-Options-PREVIEW.apk",
+  "android_sha256": "505520f2c38d22e772771c8a21eb675ad765f0cd6d18f0fe9701fb11dac122d1",
+  "ipad_filename": "Courtline-iPad-v1.0.5-Options-PREVIEW.zip",
+  "ipad_sha256": "4cb2c55a21bcad0331167d420ea73dfd0a50d205fb4268bbc0f1c45f5809c886",
+  "notes": "Options consolidates Updates, Themes, and About; update badge now on Options; Powered by Scoreholio below CourtLine."
 }
