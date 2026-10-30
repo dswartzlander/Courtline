@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.1",
-  "android_filename": "Courtline-Tablet-v1.0.1-Startup-Update-Alert.apk",
-  "android_sha256": "a81999e9c35a6becf188f12feac6f58e47482c165b3ac917be87b9100e08e508",
-  "ipad_filename": "Courtline-iPad-v1.0.1-Startup-Update-Alert.zip",
-  "ipad_sha256": "665794a40b86e65174c9d9ffe4086956fa7f43976f526c1e4c60edb7fcaeaf77",
-  "notes": "Quiet one-time update check at startup and alert badge over Updates when a newer release is found."
+  "version": "1.0.2",
+  "android_filename": "Courtline-Tablet-v1.0.2-Scoreholio-Final-Placement.apk",
+  "android_sha256": "16ba1773e81230dda3ed92701360b2c6e8781b627f66e4dc11486e9d7c2df933",
+  "ipad_filename": "Courtline-iPad-v1.0.2-Scoreholio-Final-Placement.zip",
+  "ipad_sha256": "5a7c2597699e325dcaf4dd3f7b63a3dbedff4abecd36abcd4d2c0ad3fa4c9010",
+  "notes": "Scoreholio sponsor lockup text starts below the I in LINE; logo adjacent. Android and iPad."
 }
