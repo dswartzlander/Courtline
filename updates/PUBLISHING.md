@@ -1,23 +1,23 @@
-# Publishing future CourtLine updates
+# CourtLine update publishing
 
-The current bootstrap release is [Initial release](https://github.com/dswartzlander/Courtline/releases), with **Android v0.91** and **iPad v0.93**. It stays published.
+CourtLine official downloads live in [GitHub Releases](https://github.com/dswartzlander/Courtline/releases).
 
-## Unified versioning
+## Initial unified release
 
-Use **v1.0** as the first unified release. This is essential: the already-published Android v0.91 and iPad v0.93 update checkers only recognize `vMAJOR.MINOR` asset filenames. They will **not** find a `v1.0.0` package. Once v1.0 has been installed, we can upgrade the app parsers to accept three-part semantic versions for future releases.
+The legacy bootstrap release includes Android v0.91 and iPad v0.93. The first unified release is **v1.0**, not v1.0.0, because those bootstrap update checkers only recognize two-part versions. From v1.0 onward, the app update checkers recognize both two-part versions (1.0) and three-part versions (1.0.1, 1.1.0).
 
-Never reset Android's internal `versionCode` when switching the displayed version to 1.0. It must be greater than the previously installed build. Keep the iPad bundle/build identifiers valid and increment build versions when applicable.
+**Android:** preserve package name `com.cerberus.courtline`, signing certificate, and monotonic `versionCode` (v1.0 uses 100). Each installed Android update needs the same certificate and a higher `versionCode`.
 
-## How to publish
+**iPad:** the updater downloads the Swift Playgrounds ZIP, but users must import/run the updated project manually. TestFlight remains optional.
 
-1. Build and test **signed** Android APK and **Swift Playgrounds** ZIP. Keep signing keys and source repositories private.
-2. Name the files `Courtline-Tablet-v1.0-Description.apk` and `Courtline-iPad-v1.0-Description.zip`. Keep the version the **same** for both platforms.
-3. Stage the **distribution files only** under `updates/staging/v1.0/` in this repository, using Codex/Git (or another authorized Git client). This folder is public; **never put credentials or Android source archives containing a keystore here**.
-4. Compute checksums for the **exact** staged files: `sha256sum Courtline-Tablet-*.apk Courtline-iPad-*.zip` (Windows PowerShell: `Get-FileHash -Algorithm SHA256 file`).
-5. In GitHub, open **Actions → Publish CourtLine update → Run workflow**. Enter version `1.0`, the two filenames, and their individual 64-digit SHA-256 checksums.
-6. GitHub Actions verifies filenames, content checksums, ZIP integrity, and the **existing Android signing certificate**, rejects duplicate release tags, then publishes a stable release `v1.0` with both files.
-7. The existing CourtLine apps should discover new assets when the user presses **Check for Updates**. Android still prompts for install approval. iPad still requires importing the ZIP into Swift Playgrounds.
+## Publishing future releases
 
-This workflow is **manual approval and publication**, not unattended app compilation: it does not know how to build an iPad Swift Playgrounds app or sign Android without private build materials. It does not stage binaries for you.
+1. Build, test and approve one signed Android APK and one iPad Swift Playgrounds ZIP. Use matching version identifiers, e.g. `Courtline-Tablet-v1.0.1-Fixes.apk` and `Courtline-iPad-v1.0.1-Fixes.zip`.
+2. Stage the exact **distribution binaries**, not source archives, in `updates/staging/v1.0.1/`. This repository and its staged assets are public.
+3. Calculate a SHA-256 digest for each staged artifact and verify the bytes and Android signing certificate.
+4. Update `updates/release-queue.json` on the `main` branch with the new version, exact filenames, SHA-256 hashes and `"approved": true`. **Committing this file is the release approval** and automatically triggers the `Publish CourtLine update` GitHub Actions workflow.
+5. The workflow checks the approval, filenames, versions, both hashes, ZIP integrity and the original Android signing certificate. It refuses to replace a release tag that already exists.
+6. If GitHub Actions is temporarily disabled or the automatic run does not appear, use **Actions → Publish CourtLine update → Run workflow** to retry with the same approved queue file. Confirm the run succeeds before announcing publication.
+7. Once GitHub's published **stable** release contains the assets, users on Android and iPad can press **Updates** to discover them. Android still requires system installation approval; Swift Playgrounds still requires manual import.
 
-The public GitHub repo is for release distribution. Do not put the complete Android source ZIP, keystore, API tokens, helper connection URLs, or live event configurations here.
+The GitHub release queue contains only public file names, hashes, versions and a publish approval. The Android signing key, source code, helper addresses, credentials and user/event configurations must **never** be published in this repository.
