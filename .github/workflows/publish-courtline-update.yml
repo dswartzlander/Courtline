@@ -1,102 +1,89 @@
 name: Publish CourtLine update
-run-name: "Publish CourtLine v${{ inputs.version }}"
+run-name: Publish approved CourtLine release
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - updates/release-queue.json
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Shared version, such as 1.0 (first release) or 1.0.1"
-        required: true
-        type: string
-      android_filename:
-        description: "Signed APK filename already placed in updates/staging/vVERSION/"
-        required: true
-        type: string
-      android_sha256:
-        description: "SHA-256 checksum of the approved APK (64 hex characters)"
-        required: true
-        type: string
-      ipad_filename:
-        description: "Swift Playgrounds ZIP filename already placed in updates/staging/vVERSION/"
-        required: true
-        type: string
-      ipad_sha256:
-        description: "SHA-256 checksum of the approved ZIP (64 hex characters)"
-        required: true
-        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: "courtline-release-${{ inputs.version }}"
+  group: courtline-release
   cancel-in-progress: false
 
 jobs:
   publish:
-    name: Verify and publish signed builds
+    name: Verify and publish release
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Check out repository
+      - name: Check out release files
         uses: actions/checkout@v4
         with:
           persist-credentials: false
 
-      - name: Validate version and artifacts
-        env:
-          VERSION: ${{ inputs.version }}
-          ANDROID_FILENAME: ${{ inputs.android_filename }}
-          ANDROID_SHA256: ${{ inputs.android_sha256 }}
-          IPAD_FILENAME: ${{ inputs.ipad_filename }}
-          IPAD_SHA256: ${{ inputs.ipad_sha256 }}
+      - name: Validate approval, checksums and signing certificate
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "Invalid version"; exit 1; }
-          [[ "$ANDROID_FILENAME" =~ ^Courtline-Tablet-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.apk$ ]] || exit 1
-          [[ "$IPAD_FILENAME" =~ ^Courtline-iPad-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.zip$ ]] || exit 1
-          [[ "$ANDROID_FILENAME" == Courtline-Tablet-v"$VERSION"* ]] || exit 1
-          [[ "$IPAD_FILENAME" == Courtline-iPad-v"$VERSION"* ]] || exit 1
-          [[ "$ANDROID_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
-          [[ "$IPAD_SHA256" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
+          QUEUE="updates/release-queue.json"
+          test -s "$QUEUE"
+          jq -e '.approved == true' "$QUEUE" >/dev/null || { echo "Release not approved"; exit 1; }
+          VERSION="$(jq -er '.version' "$QUEUE")"
+          APK_NAME="$(jq -er '.android_filename' "$QUEUE")"
+          ZIP_NAME="$(jq -er '.ipad_filename' "$QUEUE")"
+          APK_HASH="$(jq -er '.android_sha256' "$QUEUE")"
+          ZIP_HASH="$(jq -er '.ipad_sha256' "$QUEUE")"
+
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "Invalid release version"; exit 1; }
+          [[ "$APK_NAME" =~ ^Courtline-Tablet-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.apk$ ]] || exit 1
+          [[ "$ZIP_NAME" =~ ^Courtline-iPad-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.zip$ ]] || exit 1
+          [[ "$APK_NAME" == "Courtline-Tablet-v${VERSION}.apk" || "$APK_NAME" == "Courtline-Tablet-v${VERSION}-"*.apk ]] || exit 1
+          [[ "$ZIP_NAME" == "Courtline-iPad-v${VERSION}.zip" || "$ZIP_NAME" == "Courtline-iPad-v${VERSION}-"*.zip ]] || exit 1
+          [[ "$APK_HASH" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
+          [[ "$ZIP_HASH" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
 
           STAGING="updates/staging/v${VERSION}"
-          APK="${STAGING}/${ANDROID_FILENAME}"
-          ZIP="${STAGING}/${IPAD_FILENAME}"
-          test -s "$APK" && test -s "$ZIP" || { echo "Missing staged APK or ZIP"; exit 1; }
-          printf '%s  %s\n' "$ANDROID_SHA256" "$APK" | sha256sum -c -
-          printf '%s  %s\n' "$IPAD_SHA256" "$ZIP" | sha256sum -c -
+          APK="${STAGING}/${APK_NAME}"
+          ZIP="${STAGING}/${ZIP_NAME}"
+          test -s "$APK" && test -s "$ZIP" || { echo "Staged files missing"; exit 1; }
 
+          printf '%s  %s\n' "$APK_HASH" "$APK" | sha256sum -c -
+          printf '%s  %s\n' "$ZIP_HASH" "$ZIP" | sha256sum -c -
           unzip -t "$APK" >/dev/null
           unzip -t "$ZIP" >/dev/null
+          unzip -Z1 "$ZIP" | grep -Fx 'Courtline-iPad.swiftpm/Package.swift' >/dev/null || { echo "Missing Swift Playgrounds package"; exit 1; }
 
-          # CourtLine's existing APK signing certificate, from Android v0.91.
+          # Match the certificate of every previous CourtLine Android update, not merely any valid signature.
           EXPECTED_CERT="BE:66:99:12:38:56:DF:6C:94:A9:03:80:A6:71:E7:88:26:2C:5B:B5:9B:7C:E3:FD:07:A1:C0:91:8B:98:8F:EB"
           ACTUAL_CERT="$(keytool -printcert -jarfile "$APK" | sed -n 's/^[[:space:]]*SHA256: //p' | head -1)"
-          [[ "$ACTUAL_CERT" == "$EXPECTED_CERT" ]] || { echo "APK signing certificate mismatch"; exit 1; }
+          [[ "$ACTUAL_CERT" == "$EXPECTED_CERT" ]] || { echo "Android signing certificate mismatch"; exit 1; }
 
+          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "ANDROID_RELEASE_PATH=$APK" >> "$GITHUB_ENV"
           echo "IPAD_RELEASE_PATH=$ZIP" >> "$GITHUB_ENV"
-          echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
 
-      - name: Confirm release does not already exist
+      - name: Confirm release is new
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           if gh release view "v${RELEASE_VERSION}" >/dev/null 2>&1; then
-            echo "Release tag v${RELEASE_VERSION} already exists. Refusing to overwrite it."
+            echo "Release v${RELEASE_VERSION} already exists; refusing to overwrite it."
             exit 1
           fi
 
-      - name: Publish approved packages to GitHub Releases
+      - name: Publish stable release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           gh release create "v${RELEASE_VERSION}" "$ANDROID_RELEASE_PATH" "$IPAD_RELEASE_PATH" \
             --title "CourtLine v${RELEASE_VERSION}" \
-            --notes "Stable CourtLine Android and iPad update. Android requires approval in the system installer. iPad Swift Playgrounds requires importing the ZIP." \
+            --notes "Verified CourtLine Android and iPad update. Android requires system installation approval; iPad Swift Playgrounds requires importing the project ZIP." \
             --latest
