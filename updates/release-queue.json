@@ -1,10 +1,8 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.6",
-  "android_filename": "Courtline-Tablet-v1.0.6-Options-Footer-PREVIEW.apk",
-  "android_sha256": "e0e285437b3a2e54fa29142d5bcb9d874d98319e8a41f7387f00581cf30c07c8",
-  "ipad_filename": "Courtline-iPad-v1.0.6-Options-Footer-PREVIEW.zip",
-  "ipad_sha256": "eaeb6ec75abb4ad5b2eba0816a140ffff746fbe5ff9e70662efb6c97a5264eb7",
-  "notes": "Remove About section; show version under divider in Options footer. Android package/signature and increasing versionCode preserved."
+  "version": "1.0.7",
+  "android_filename": "Courtline-Tablet-v1.0.7-Launcher-Icon.apk",
+  "android_sha256": "b0d98848906a1f070fb479cbc816b23c4310ef0ee2c9200492ac63252dc1542a",
+  "notes": "Android-only launcher logo and app label Courtline. iPad remains v1.0.6; no iPad ZIP in this release."
 }
