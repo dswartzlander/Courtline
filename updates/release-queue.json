@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0",
-  "android_filename": "Courtline-Tablet-v1.0-GitHub-Release.apk",
-  "android_sha256": "649074bd45ebe3f1ba045f1f5348d0021f62f665ed9880162e02c91768f992f2",
-  "ipad_filename": "Courtline-iPad-v1.0-GitHub-Release.zip",
-  "ipad_sha256": "d6539bc6b0cb4a1f8ce067fdef2d300e410bb87b49651a10cc353ede6de08124",
-  "notes": "First unified CourtLine release; update checkers support future 1.0.1 versions."
+  "version": "1.0.1",
+  "android_filename": "Courtline-Tablet-v1.0.1-Startup-Update-Alert.apk",
+  "android_sha256": "a81999e9c35a6becf188f12feac6f58e47482c165b3ac917be87b9100e08e508",
+  "ipad_filename": "Courtline-iPad-v1.0.1-Startup-Update-Alert.zip",
+  "ipad_sha256": "665794a40b86e65174c9d9ffe4086956fa7f43976f526c1e4c60edb7fcaeaf77",
+  "notes": "Quiet one-time update check at startup and alert badge over Updates when a newer release is found."
 }
