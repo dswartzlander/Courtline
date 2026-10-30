@@ -36,28 +36,43 @@ jobs:
           jq -e '.approved == true' "$QUEUE" >/dev/null || { echo "Release not approved"; exit 1; }
           VERSION="$(jq -er '.version' "$QUEUE")"
           APK_NAME="$(jq -er '.android_filename' "$QUEUE")"
-          ZIP_NAME="$(jq -er '.ipad_filename' "$QUEUE")"
+          ZIP_NAME="$(jq -r '.ipad_filename // empty' "$QUEUE")"
           APK_HASH="$(jq -er '.android_sha256' "$QUEUE")"
-          ZIP_HASH="$(jq -er '.ipad_sha256' "$QUEUE")"
+          ZIP_HASH="$(jq -r '.ipad_sha256 // empty' "$QUEUE")"
 
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || { echo "Invalid release version"; exit 1; }
           [[ "$APK_NAME" =~ ^Courtline-Tablet-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.apk$ ]] || exit 1
-          [[ "$ZIP_NAME" =~ ^Courtline-iPad-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.zip$ ]] || exit 1
+          if [[ -n "$ZIP_NAME" ]]; then
+            [[ "$ZIP_NAME" =~ ^Courtline-iPad-v[0-9]+\.[0-9]+(\.[0-9]+)?(-[A-Za-z0-9-]+)?\.zip$ ]] || exit 1
+          fi
           [[ "$APK_NAME" == "Courtline-Tablet-v${VERSION}.apk" || "$APK_NAME" == "Courtline-Tablet-v${VERSION}-"*.apk ]] || exit 1
-          [[ "$ZIP_NAME" == "Courtline-iPad-v${VERSION}.zip" || "$ZIP_NAME" == "Courtline-iPad-v${VERSION}-"*.zip ]] || exit 1
+          if [[ -n "$ZIP_NAME" ]]; then
+            [[ "$ZIP_NAME" == "Courtline-iPad-v${VERSION}.zip" || "$ZIP_NAME" == "Courtline-iPad-v${VERSION}-"*.zip ]] || exit 1
+          fi
           [[ "$APK_HASH" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
-          [[ "$ZIP_HASH" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
+          if [[ -n "$ZIP_NAME" ]]; then
+            [[ "$ZIP_HASH" =~ ^[a-fA-F0-9]{64}$ ]] || exit 1
+          else
+            [[ -z "$ZIP_HASH" ]] || { echo "iPad checksum provided without an iPad package"; exit 1; }
+          fi
 
           STAGING="updates/staging/v${VERSION}"
           APK="${STAGING}/${APK_NAME}"
           ZIP="${STAGING}/${ZIP_NAME}"
-          test -s "$APK" && test -s "$ZIP" || { echo "Staged files missing"; exit 1; }
+          test -s "$APK" || { echo "Staged Android APK missing"; exit 1; }
+          if [[ -n "$ZIP_NAME" ]]; then
+            test -s "$ZIP" || { echo "Staged iPad ZIP missing"; exit 1; }
+          fi
 
           printf '%s  %s\n' "$APK_HASH" "$APK" | sha256sum -c -
-          printf '%s  %s\n' "$ZIP_HASH" "$ZIP" | sha256sum -c -
+          if [[ -n "$ZIP_NAME" ]]; then
+            printf '%s  %s\n' "$ZIP_HASH" "$ZIP" | sha256sum -c -
+          fi
           unzip -t "$APK" >/dev/null
-          unzip -t "$ZIP" >/dev/null
-          unzip -Z1 "$ZIP" | grep -Fx 'Courtline-iPad.swiftpm/Package.swift' >/dev/null || { echo "Missing Swift Playgrounds package"; exit 1; }
+          if [[ -n "$ZIP_NAME" ]]; then
+            unzip -t "$ZIP" >/dev/null
+            unzip -Z1 "$ZIP" | grep -Fx 'Courtline-iPad.swiftpm/Package.swift' >/dev/null || { echo "Missing Swift Playgrounds package"; exit 1; }
+          fi
 
           # Match the certificate of every previous CourtLine Android update, not merely any valid signature.
           EXPECTED_CERT="BE:66:99:12:38:56:DF:6C:94:A9:03:80:A6:71:E7:88:26:2C:5B:B5:9B:7C:E3:FD:07:A1:C0:91:8B:98:8F:EB"
@@ -67,6 +82,7 @@ jobs:
           echo "RELEASE_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "ANDROID_RELEASE_PATH=$APK" >> "$GITHUB_ENV"
           echo "IPAD_RELEASE_PATH=$ZIP" >> "$GITHUB_ENV"
+          echo "HAS_IPAD=$([[ -n "$ZIP_NAME" ]] && echo true || echo false)" >> "$GITHUB_ENV"
 
       - name: Confirm release is new
         env:
@@ -83,7 +99,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release create "v${RELEASE_VERSION}" "$ANDROID_RELEASE_PATH" "$IPAD_RELEASE_PATH" \
+          assets=("$ANDROID_RELEASE_PATH")
+          notes="Verified CourtLine Android update. Android requires system installation approval."
+          if [[ "$HAS_IPAD" == "true" ]]; then
+            assets+=("$IPAD_RELEASE_PATH")
+            notes="Verified CourtLine Android and iPad update. Android requires system installation approval; iPad Swift Playgrounds requires importing the project ZIP."
+          fi
+          gh release create "v${RELEASE_VERSION}" "${assets[@]}" \
             --title "CourtLine v${RELEASE_VERSION}" \
-            --notes "Verified CourtLine Android and iPad update. Android requires system installation approval; iPad Swift Playgrounds requires importing the project ZIP." \
+            --notes "$notes" \
             --latest
