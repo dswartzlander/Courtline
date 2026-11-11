@@ -12,6 +12,14 @@ CourtLine Full pairs an Android tablet or iPad with a small Windows Export Runne
 
 The export folder contains ScoreMagic and available roster and standings CSVs, consolidated player stats, and `SinglesMatchup.xml` and `DoublesMatchup.xml` when the court lineup can be confirmed. Tournament and player fields sit directly under `/Matchup`. Pairing addresses contain a key. Use **Reset Pairing** on Windows to replace it.
 
+## Pair over Bluetooth
+
+1. On the production PC, turn on Windows Bluetooth and choose **Enable Bluetooth** in the runner. The PC's adapter must support Bluetooth Low Energy peripheral mode.
+2. On the runner, select **Show Pairing Code**. In the tablet app's **Settings**, scan the code labeled **Bluetooth** and choose the production PC from the device list. Accept the system Bluetooth pairing prompt if it appears. Use **Reconnect Bluetooth** after restarting the tablet app or losing the connection.
+3. Run vMix on the same PC as the runner. Set **Local vMix port** in the runner to the port shown in vMix's Web Controller settings. Use **Test Connection** on the tablet to verify it.
+
+The tablet can use Bluetooth with Wi-Fi turned off. The PC still needs an internet connection for live Scoreholio data and exports. Keep the tablet app open for match automation.
+
 ## iPad development build
 
 Extract the iOS Xcode source ZIP on a Mac. In its `mobile` folder, run `npm ci` and `npm run ios:sync`. Open `mobile/ios/App/App.xcodeproj` in Xcode, choose a signing team for `com.courtline.full`, and run on a development iPad. The ZIP includes the shared sources and a synced web bundle. Android uses the separate application ID `com.courtline.full`.
