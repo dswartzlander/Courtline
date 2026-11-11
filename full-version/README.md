@@ -16,4 +16,4 @@ The export folder contains ScoreMagic and available roster and standings CSVs, c
 
 Extract the iOS Xcode source ZIP on a Mac. In its `mobile` folder, run `npm ci` and `npm run ios:sync`. Open `mobile/ios/App/App.xcodeproj` in Xcode, choose a signing team for `com.courtline.full`, and run on a development iPad. The ZIP includes the shared sources and a synced web bundle. Android uses the separate application ID `com.courtline.full`.
 
-CourtLine Full uses its own `full-v*` prerelease tags. Check the [repository releases](../releases) for published test downloads.
+CourtLine Full uses its own `full-v*` prerelease tags. Check the [repository releases](https://github.com/dswartzlander/Courtline/releases) for published test downloads.
