@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.7",
-  "android_filename": "Courtline-Tablet-v1.0.7-Launcher-Icon.apk",
-  "android_sha256": "b0d98848906a1f070fb479cbc816b23c4310ef0ee2c9200492ac63252dc1542a",
-  "notes": "Android-only launcher logo and app label Courtline. iPad remains v1.0.6; no iPad ZIP in this release."
+  "version": "1.0.8",
+  "android_filename": "Courtline-Tablet-v1.0.8-Remote-Mode-Follow.apk",
+  "android_sha256": "dd0225d3d938665983eee430b27973d522b6e8d5d02d13119560bed51d806ef8",
+  "notes": "Android-only update from v1.0.7. Automatic Remote Mode device/event reassignment, retained binding on missing devices, immediate event display changes. Same package and signing certificate. iPad unchanged. Focused offline regression passed; physical Android/Scoreholio/vMix acceptance still required. Existing legacy Main-role Backend-authority compatibility unchanged."
 }
