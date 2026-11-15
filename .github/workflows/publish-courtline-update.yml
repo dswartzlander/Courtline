@@ -105,7 +105,10 @@ jobs:
             assets+=("$IPAD_RELEASE_PATH")
             notes="Verified CourtLine Android and iPad update. Android requires system installation approval; iPad Swift Playgrounds requires importing the project ZIP."
           fi
+          printf '%s\n' "$notes" > release-notes.txt
+          jq -r 'if (.notes | type) == "string" then "\n" + .notes else empty end' updates/release-queue.json >> release-notes.txt
           gh release create "v${RELEASE_VERSION}" "${assets[@]}" \
             --title "CourtLine v${RELEASE_VERSION}" \
-            --notes "$notes" \
+            --notes-file release-notes.txt \
             --latest
+

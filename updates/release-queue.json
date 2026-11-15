@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.8",
-  "android_filename": "Courtline-Tablet-v1.0.8-Remote-Mode-Follow.apk",
-  "android_sha256": "dd0225d3d938665983eee430b27973d522b6e8d5d02d13119560bed51d806ef8",
-  "notes": "Android-only update from v1.0.7. Automatic Remote Mode device/event reassignment, retained binding on missing devices, immediate event display changes. Same package and signing certificate. iPad unchanged. Focused offline regression passed; physical Android/Scoreholio/vMix acceptance still required. Existing legacy Main-role Backend-authority compatibility unchanged."
+  "version": "1.0.9",
+  "android_filename": "Courtline-Tablet-v1.0.9-Backend-Control-Sync.apk",
+  "android_sha256": "11bc1e9d6b430ac83f12be10f4fdb3d9cb84912d117ca5a32858857408adc42e",
+  "notes": "Requires CourtLine Backend 0.36.0-test.36 or newer for shared settings. Install/update Backend first. Android Control View keeps its existing layout: Pull from Backend loads shared settings; each section Apply commits to Backend. Revision conflicts preserve drafts; offline/older-Backend controls fail closed. Standalone and read-only Companion modes retained. Original signing identity. iPad unchanged. 30 non-browser tests and real Backend HTTP integration passed; physical tablet/vMix acceptance still required."
 }
