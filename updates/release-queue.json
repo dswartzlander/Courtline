@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "approved": true,
-  "version": "1.0.9",
-  "android_filename": "Courtline-Tablet-v1.0.9-Backend-Control-Sync.apk",
-  "android_sha256": "11bc1e9d6b430ac83f12be10f4fdb3d9cb84912d117ca5a32858857408adc42e",
-  "notes": "Requires CourtLine Backend 0.36.0-test.36 or newer for shared settings. Install/update Backend first. Android Control View keeps its existing layout: Pull from Backend loads shared settings; each section Apply commits to Backend. Revision conflicts preserve drafts; offline/older-Backend controls fail closed. Standalone and read-only Companion modes retained. Original signing identity. iPad unchanged. 30 non-browser tests and real Backend HTTP integration passed; physical tablet/vMix acceptance still required."
+  "version": "1.0.10",
+  "android_filename": "Courtline-Tablet-v1.0.10-Backend-Backup-Refresh.apk",
+  "android_sha256": "7bc10e75aa1c806ab92fffa17a68dc3f04f78fbe83a8d97e4aa81593773cc973",
+  "notes": "Install CourtLine Backend 0.36.0-test.37 first for complete shared-settings backup and restore. Refresh and Pull from Backend remain separate, normally sized controls: Refresh reads live courts/stats; Pull loads settings and preserves drafts. Routine status chatter is quiet without slowing live updates. CourtLine Backend/Scan Backend QR labels updated; Main Export & Refresh Now requests authenticated event exports. Connected Export All Settings includes shared Backend settings and Android local preferences, excluding credentials/PINs, sign-in, PC folders and installation state; it is not a full machine backup. Import shows an exact reviewed preview and performs atomic conflict-checked restore. Changed restores stop monitoring/pending automation; unchanged restores preserve them. Restart monitoring yourself when ready. Standalone legacy backups and read-only Companion preserved. Original signing identity; iPad unchanged. Automated regression, actual Backend HTTP integration and static phone/tablet layout checks passed. QR automatic save/reconnect software flow tested; physical Android camera decoding, native file picker and installation acceptance remain pending."
 }
