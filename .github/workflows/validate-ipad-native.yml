@@ -1,0 +1,37 @@
+name: Validate CourtLine iPad native sources
+on:
+  push:
+    branches: [main]
+    paths:
+      - updates/ios-validation/request.json
+permissions:
+  contents: read
+concurrency:
+  group: courtline-ipad-native-validation
+  cancel-in-progress: false
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify and unpack exact source snapshot
+        run: python3 updates/ios-validation/verify_snapshot.py
+      - name: Typecheck and compile native iOS sources without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun swiftc --version
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          ROOT="$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm"
+          SOURCES=()
+          while IFS= read -r -d '' f; do SOURCES+=("$f"); done < <(find "$ROOT" -maxdepth 1 -type f -name '*.swift' ! -name 'Package.swift' -print0)
+          test "${#SOURCES[@]}" -ge 4
+          xcrun swiftc -swift-version 5 -parse-as-library -typecheck -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}"
+          xcrun swiftc -swift-version 5 -parse-as-library -emit-executable -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}" -o "$RUNNER_TEMP/CourtlineNativeValidation"
+          echo 'Native source typecheck and unsigned link passed. Playgrounds package manifest, install, camera, network and runtime were not tested.' >> "$GITHUB_STEP_SUMMARY"
