@@ -66,6 +66,7 @@ extension CourtlineSessionBroker {
     check(!BackendCertificateDates.valid(Data([0x30,0x80,0,0])),"indefinite DER rejected")
     do {let b=fresh(true);var finished=false;var error:Error?;b.enroll(qr()){error=$0;finished=true};wait{finished};check(error==nil && b.pairedSecure && b.ready && b.role=="viewer" && saves==1,"migration commits once")
         check(SecureStub.seen.count==2,"identity then reopen only");check(SecureStub.seen[0].value(forHTTPHeaderField:"X-Courtline-Key")==nil,"identity no secret");check(SecureStub.seen[1].value(forHTTPHeaderField:"X-Courtline-Key")?.hasPrefix("ds_")==true,"registered key only after identity")
+        SecureStub.seen=[];var reopened=false;b.coldStart{check($0==nil,"cold restart succeeds");reopened=true};wait{reopened};check(SecureStub.seen.count==2 && SecureStub.seen[0].url?.path=="/api/server-identity" && SecureStub.seen[1].url?.path=="/api/device-session","saved address checked before reopening; no discovery needed")
         var bad=false;b.enroll("http://192.168.1.2:18100/api/stats?key=en_"+String(repeating:"c",count:64)){bad=$0 != nil};check(bad && SecureStub.seen.count==2,"no HTTP fallback")
     }
     do {let b=fresh(true);SecureStub.wrongID=true;var finished=false;b.enroll(qr()){check($0 != nil,"wrong identity error");finished=true};wait{finished};check(saves==0 && SecureStub.seen.count==1 && !b.pairedSecure,"wrong ID never receives credential")}
