@@ -1,6 +1,6 @@
 {
   "validationOnly": true,
-  "filename": "Courtline-iPad-v1.0.8-Widget-Parity.zip",
-  "sha256": "cb776e3a4aaaa23e2efb91e3124f7a91312ce32257785f5d95579fc64235b568",
-  "stage": "exact-final108-25-swift-runtime-checks"
+  "filename": "Courtline-iPad-v1.0.9-Pairing-Diagnostics.zip",
+  "sha256": "cff99d8f5a4680bbce8461e408227d6bd87500b38dd497a5d33244f6f2fe91ee",
+  "stage": "exact-final109-35-swift-runtime-checks"
 }

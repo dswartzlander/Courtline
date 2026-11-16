@@ -47,3 +47,13 @@ jobs:
           xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/WidgetRuntime.swift" -o "$RUNNER_TEMP/WidgetRuntime"
           python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/WidgetRuntime"],check=True,timeout=60)'
           echo 'Actual shipping Swift broker runtime checks passed on macOS using fake transport only; not physical iOS runtime.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise enrollment diagnostics with fake macOS transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT="$SDK"
+          cat "$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm/CourtlineSessionBroker.swift" updates/ios-validation/PairingRuntime.swift > "$RUNNER_TEMP/PairingRuntime.swift"
+          xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/PairingRuntime.swift" -o "$RUNNER_TEMP/PairingRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/PairingRuntime"],check=True,timeout=120)'
+          echo 'Actual shipping Swift enrollment diagnostics passed on macOS using fake transport only; no physical iPad or live network test.' >> "$GITHUB_STEP_SUMMARY"
