@@ -1,6 +1,6 @@
 {
   "validationOnly": true,
-  "filename": "Courtline-iPad-v1.0.7-Backend-Parity-Final2.zip",
-  "sha256": "b8143c4cfd80dd0625e94c18f1632a72e4e683ff6d9d7b85cfafcc812fb4fc99",
-  "stage": "exact-final2-reviewed-release-artifact"
+  "filename": "Courtline-iPad-v1.0.8-NativeCheck1.zip",
+  "sha256": "5f1bd37ed97af79833fd3b78dcd0fa23e1bbab774f28efae7cd6997119b71582",
+  "stage": "preliminary108-native-and-runtime"
 }

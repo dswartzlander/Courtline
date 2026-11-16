@@ -37,3 +37,13 @@ jobs:
           xcrun --sdk iphoneos swiftc -swift-version 5 -parse-as-library -typecheck -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}"
           xcrun --sdk iphoneos swiftc -swift-version 5 -parse-as-library -emit-executable -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}" -o "$RUNNER_TEMP/CourtlineNativeValidation"
           echo 'Native source typecheck and unsigned link passed. Playgrounds package manifest, install, camera, network and runtime were not tested.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise shipping broker with fake macOS transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT="$SDK"
+          cat "$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm/CourtlineSessionBroker.swift" updates/ios-validation/WidgetRuntime.swift > "$RUNNER_TEMP/WidgetRuntime.swift"
+          xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/WidgetRuntime.swift" -o "$RUNNER_TEMP/WidgetRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/WidgetRuntime"],check=True,timeout=60)'
+          echo 'Actual shipping Swift broker runtime checks passed on macOS using fake transport only; not physical iOS runtime.' >> "$GITHUB_STEP_SUMMARY"
