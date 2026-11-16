@@ -2,7 +2,7 @@ import hashlib, json, os, pathlib, re, stat, zipfile
 request = json.loads(pathlib.Path('updates/ios-validation/request.json').read_text())
 assert request.get('validationOnly') is True, 'Not a validation-only request'
 name = request['filename']
-assert re.fullmatch(r'Courtline-iPad-v1\.0\.(?:[789]|10)-[A-Za-z0-9-]+\.zip', name), 'Unexpected source filename'
+assert re.fullmatch(r'Courtline-iPad-v1\.0\.(?:[789]|10|11)-[A-Za-z0-9-]+\.zip', name), 'Unexpected source filename'
 expected = request['sha256']
 assert re.fullmatch(r'[0-9a-f]{64}', expected), 'Invalid expected checksum'
 archive = pathlib.Path('updates/ios-validation') / name

@@ -57,3 +57,14 @@ jobs:
           xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/PairingRuntime.swift" -o "$RUNNER_TEMP/PairingRuntime"
           python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/PairingRuntime"],check=True,timeout=120)'
           echo 'Actual shipping Swift enrollment diagnostics passed on macOS using fake transport only; no physical iPad or live network test.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise credential-free health diagnostics with fake macOS transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT="$SDK"
+          ROOT="$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm"
+          cat "$ROOT/CourtlineSessionBroker.swift" "$ROOT/ConnectionDiagnostics.swift" updates/ios-validation/HealthRuntime.swift > "$RUNNER_TEMP/HealthRuntime.swift"
+          xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/HealthRuntime.swift" -o "$RUNNER_TEMP/HealthRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/HealthRuntime"],check=True,timeout=60)'
+          echo 'Credential-free health and executable-identity checks passed with fake transport only; not physical iPad or LAN testing.' >> "$GITHUB_STEP_SUMMARY"

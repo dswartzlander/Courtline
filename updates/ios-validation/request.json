@@ -1,6 +1,6 @@
 {
   "validationOnly": true,
-  "filename": "Courtline-iPad-v1.0.10-Network-Path-Diagnostics.zip",
-  "sha256": "f825e87c849f55773c922e0c8983b11990d5668b1fbbc221635523622054a644",
-  "stage": "exact-final110-44-swift-runtime-checks"
+  "filename": "Courtline-iPad-v1.0.11-Connection-Inspector.zip",
+  "sha256": "6737e93b4e38700525e20b54ec11a081ca9bdbbc5de2ad6ec556c8cbbaf217ef",
+  "stage": "exact-final111-57-swift-runtime-checks"
 }
