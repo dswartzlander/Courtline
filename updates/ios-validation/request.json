@@ -2,5 +2,5 @@
   "validationOnly": true,
   "filename": "Courtline-iPad-v1.0.7-NativeCheck4.zip",
   "sha256": "a63cfcd63008aba25b4099f6dc9cec7538ad143778445a2152ed77a4c8144063",
-  "stage": "native-compile-candidate-4"
+  "stage": "native-compile-candidate-4-explicit-ios-linker-sdk"
 }

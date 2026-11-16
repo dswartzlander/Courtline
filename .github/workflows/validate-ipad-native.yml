@@ -28,10 +28,12 @@ jobs:
           xcodebuild -version
           xcrun swiftc --version
           SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          export SDKROOT="$SDK"
+          echo "Apple iOS SDK: $SDKROOT"
           ROOT="$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm"
           SOURCES=()
           while IFS= read -r -d '' f; do SOURCES+=("$f"); done < <(find "$ROOT" -maxdepth 1 -type f -name '*.swift' ! -name 'Package.swift' -print0)
           test "${#SOURCES[@]}" -ge 4
-          xcrun swiftc -swift-version 5 -parse-as-library -typecheck -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}"
-          xcrun swiftc -swift-version 5 -parse-as-library -emit-executable -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}" -o "$RUNNER_TEMP/CourtlineNativeValidation"
+          xcrun --sdk iphoneos swiftc -swift-version 5 -parse-as-library -typecheck -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}"
+          xcrun --sdk iphoneos swiftc -swift-version 5 -parse-as-library -emit-executable -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}" -o "$RUNNER_TEMP/CourtlineNativeValidation"
           echo 'Native source typecheck and unsigned link passed. Playgrounds package manifest, install, camera, network and runtime were not tested.' >> "$GITHUB_STEP_SUMMARY"
