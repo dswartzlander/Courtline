@@ -14,6 +14,7 @@ private final class HealthStub:URLProtocol {
  override func stopLoading() {}
 }
 extension ConnectionDiagnostics {
+ fileprivate func testFireOuterDeadline(){precondition(deadline != nil);deadline?.perform()}
  fileprivate func testSetup(){configuration={let c=URLSessionConfiguration.ephemeral;c.protocolClasses=[HealthStub.self];return c}}
  fileprivate func testReentrantHeader()->String {
    var result="";completion={result=$0}
@@ -36,19 +37,25 @@ extension ConnectionDiagnostics {
  }
 }
 @main struct HealthRuntime {
- static func run(_ label:String,status:Int=401,error:Int?=nil,pending:Bool=false) {
+ static func run(_ label:String,status:Int=401,error:Int?=nil,pending:Bool=false,forceDeadline:Bool=false) {
   HealthStub.status=status;HealthStub.errorCode=error;HealthStub.pending=pending;HealthStub.seen=[]
-  let p=ConnectionDiagnostics();p.testSetup();var result:String?
-  p.start(origin:URL(string:"http://10.0.0.2:3999")!){result=$0}
+  let p=ConnectionDiagnostics();p.testSetup();var result:String?;var completions=0;var fired=false
+  let started=ProcessInfo.processInfo.systemUptime
+  p.start(origin:URL(string:"http://10.0.0.2:3999")!){completions += 1;result=$0}
   let deadline=Date().addingTimeInterval(12)
-  while result==nil && Date()<deadline {RunLoop.main.run(until:Date().addingTimeInterval(0.01))}
-  precondition(result != nil)
+  while result==nil && Date()<deadline {
+   RunLoop.main.run(until:Date().addingTimeInterval(0.01))
+   if forceDeadline && !fired && !HealthStub.seen.isEmpty {fired=true;p.testFireOuterDeadline()}
+  }
+  precondition(result != nil && completions==1)
+  precondition(ProcessInfo.processInfo.systemUptime-started < 11.5)
   precondition(HealthStub.seen.count==1)
   let req=HealthStub.seen[0];precondition(req.httpMethod=="GET" && req.url!.path=="/api/health" && URLComponents(url:req.url!,resolvingAgainstBaseURL:false)!.query==nil)
   precondition(req.httpBody==nil && req.value(forHTTPHeaderField:"X-Courtline-Key")==nil && req.value(forHTTPHeaderField:"Cookie")==nil && req.value(forHTTPHeaderField:"Authorization")==nil)
   FileHandle.standardError.write(Data(("HEALTH RESULT "+label+": "+result!+"\n").utf8))
   precondition(!result!.contains("secret"))
-  if pending {precondition(result!.hasPrefix("Deadline reached"))}
+  if forceDeadline {precondition(fired && result!.hasPrefix("Deadline reached"))}
+  else if pending {precondition(result!.contains("NSURLErrorDomain -1001") || result!.hasPrefix("Deadline reached"))}
   else if let code=error {precondition(result!.contains("NSURLErrorDomain "+String(code)))}
   else {precondition(result!.hasPrefix("HTTP "+String(status)))}
   print("PASS "+label)
@@ -60,7 +67,8 @@ extension ConnectionDiagnostics {
   print("PASS six unsafe origins rejected")
   let h=ConnectionDiagnostics();precondition(h.testReentrantHeader().hasPrefix("HTTP 401"));print("PASS reentrant cancel preserves HTTPstatus")
   let d=ConnectionDiagnostics();precondition(d.testRedirect().contains("redirect refused"));print("PASS redirect refused")
-  run("bounded deadline",pending:true)
+  run("bounded timeout completion",pending:true)
+  run("deterministic outer deadline",pending:true,forceDeadline:true)
   let identity=ConnectionDiagnostics.identity();precondition(identity.contains("Bundle:") && identity.contains("Executable UUID:") && identity.contains("Local Network description:"));print("PASS bounded identity fields")
  }
 }
