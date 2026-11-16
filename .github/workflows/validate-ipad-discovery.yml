@@ -1,0 +1,42 @@
+name: Validate iPad secure discovery
+on:
+  push:
+    branches: [main]
+    paths: [updates/ios-discovery-validation/request.json]
+permissions:
+  contents: read
+concurrency:
+  group: courtline-ipad-discovery-validation
+  cancel-in-progress: false
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact source archive
+        run: python3 updates/ios-discovery-validation/verify_snapshot.py
+      - name: Typecheck and link shipping iPad sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          ROOT="$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm"
+          SOURCES=()
+          while IFS= read -r -d '' f; do SOURCES+=("$f"); done < <(find "$ROOT" -maxdepth 1 -name '*.swift' ! -name Package.swift -print0)
+          xcrun swiftc -swift-version 5 -parse-as-library -typecheck -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}"
+          xcrun swiftc -swift-version 5 -parse-as-library -emit-executable -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}" -o "$RUNNER_TEMP/CourtlineNativeValidation"
+      - name: Run actual Swift secure broker with fake network
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          ROOT="$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm"
+          cat "$ROOT/SecureBackend.swift" "$ROOT/CourtlineSessionBroker.swift" updates/ios-discovery-validation/SecureRuntime.swift > "$RUNNER_TEMP/SecureRuntime.swift"
+          xcrun swiftc -swift-version 5 -D COURTLINE_TESTING -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/SecureRuntime.swift" -o "$RUNNER_TEMP/SecureRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/SecureRuntime"],check=True,timeout=90)'
+          echo 'Exact shipping source SDK typecheck/link and fake-network Swift tests passed; no physical TLS, Bonjour, iPad or Playgrounds runtime test.' >> "$GITHUB_STEP_SUMMARY"
