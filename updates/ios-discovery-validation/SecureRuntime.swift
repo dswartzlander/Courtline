@@ -59,7 +59,9 @@ extension CourtlineSessionBroker {
         let der=Data(base64Encoded:certificates[name]!)!,cert=SecCertificateCreateWithData(nil,der as CFData)!
         var trust:SecTrust?;check(SecTrustCreateWithCertificates(cert,SecPolicyCreateSSL(true,nil),&trust)==errSecSuccess,"test trust created")
         let pin=SHA256.hash(data:der).map{String(format:"%02x",$0)}.joined()
-        check(PinnedBackendRequest.validate(serverTrust:trust!,cert:cert,pin:pin)==(name=="current"),"actual Security trust validation "+name)
+        let verified=PinnedBackendRequest.validate(serverTrust:trust!,cert:cert,pin:pin)
+        if name=="current" && !verified { var e:CFError?;let evaluated=SecTrustEvaluateWithError(trust!,&e);FileHandle.standardError.write(Data(("CERT DIAG dates=\(BackendCertificateDates.valid(der)) evaluated=\(evaluated) error=\(String(describing:e))\n").utf8)) }
+        check(verified==(name=="current"),"actual Security trust validation "+name)
         check(!PinnedBackendRequest.validate(serverTrust:trust!,cert:cert,pin:String(repeating:"0",count:64)),"wrong pin rejected "+name)
     }
     check(!BackendCertificateDates.valid(Data()),"empty certificate rejected")
