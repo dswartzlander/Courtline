@@ -1,0 +1,50 @@
+name: Validate standalone NetworkTest sources
+on:
+  push:
+    branches: [main]
+    paths:
+      - updates/network-test-validation/request.json
+permissions:
+  contents: read
+concurrency:
+  group: network-test-native-validation
+  cancel-in-progress: false
+jobs:
+  native:
+    runs-on: macos-15
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify and unpack exact source snapshot
+        run: python3 updates/network-test-validation/verify_snapshot.py
+      - name: Typecheck and compile native iOS sources without signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun swiftc --version
+          SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
+          export SDKROOT="$SDK"
+          echo "Apple iOS SDK: $SDKROOT"
+          ROOT="$RUNNER_TEMP/network-test-native/CourtLine-Network-Test.swiftpm"
+          SOURCES=()
+          while IFS= read -r -d '' f; do SOURCES+=("$f"); done < <(find "$ROOT" -maxdepth 1 -type f -name '*.swift' ! -name 'Package.swift' -print0)
+          test "${#SOURCES[@]}" -ge 4
+          xcrun --sdk iphoneos swiftc -swift-version 5 -parse-as-library -typecheck -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}"
+          xcrun --sdk iphoneos swiftc -swift-version 5 -parse-as-library -emit-executable -sdk "$SDK" -target arm64-apple-ios18.0 -module-name AppModule "${SOURCES[@]}" -o "$RUNNER_TEMP/NetworkTestValidation"
+          echo 'Native source typecheck and unsigned link passed. Playgrounds package manifest, install, camera, network and runtime were not tested.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise standalone diagnostics using fake transport only
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT="$SDK"
+          ROOT="$RUNNER_TEMP/network-test-native/CourtLine-Network-Test.swiftpm"
+          cat "$ROOT/LANOrigin.swift" "$ROOT/PathObservation.swift" "$ROOT/ConnectionDiagnostics.swift" "$ROOT/NetworkTestModel.swift" updates/network-test-validation/NetworkTestRuntime.swift > "$RUNNER_TEMP/NetworkTestRuntime.swift"
+          xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/NetworkTestRuntime.swift" -o "$RUNNER_TEMP/NetworkTestRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/NetworkTestRuntime"],check=True,timeout=90)'
+          echo 'Standalone Swift diagnostics passed on macOS with fake HTTP and path observation only. No physical iPad, production LAN, enrollment or credential access.' >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,6 @@
+{
+  "validationOnly": true,
+  "filename": "NetworkTest-v1.0-Comparison-Final.zip",
+  "sha256": "342cdcd01b150a1b2aebfdc30f31be674928cc6c10334cacda7b71c7696ae7ea",
+  "stage": "standalone-exact-sdk-25-fake-runtime"
+}
