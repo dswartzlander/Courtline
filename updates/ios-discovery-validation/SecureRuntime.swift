@@ -6,6 +6,7 @@ private final class SecureStub:URLProtocol {
     static var hold=false
     static var wrongID=false
     static var reject=false
+    static var wrongFamily=false
     static let id="11111111-1111-4111-8111-111111111111"
     static let family="22222222-2222-4222-8222-222222222222"
     override class func canInit(with request:URLRequest)->Bool{true}
@@ -14,7 +15,7 @@ private final class SecureStub:URLProtocol {
     override func stopLoading(){}
     func respond(){
         let identity=request.url!.path=="/api/server-identity"
-        let r:[String:Any]=identity ? ["version":1,"backendId":Self.wrongID ? Self.family:Self.id]:["role":"viewer","deviceId":"session_"+Self.family,"sessionId":Self.family,"viewerKey":"ds_"+String(repeating:"b",count:64),"perDeviceControlPINs":true,"controlAllowed":true,"pinAvailable":true]
+        let r:[String:Any]=identity ? ["version":1,"backendId":Self.wrongID ? Self.family:Self.id]:["role":"viewer","deviceId":"session_"+(Self.wrongFamily ? Self.id:Self.family),"sessionId":Self.wrongFamily ? Self.id:Self.family,"viewerKey":"ds_"+String(repeating:"b",count:64),"perDeviceControlPINs":true,"controlAllowed":true,"pinAvailable":true]
         client?.urlProtocol(self,didReceive:HTTPURLResponse(url:request.url!,statusCode:Self.reject ? 403:200,httpVersion:nil,headerFields:nil)!,cacheStoragePolicy:.notAllowed)
         client?.urlProtocol(self,didLoad:try! JSONSerialization.data(withJSONObject:r));client?.urlProtocolDidFinishLoading(self)
     }
@@ -24,6 +25,8 @@ extension CourtlineSessionBroker {
         origin=paired ? URL(string:"http://192.168.1.2:18100"):nil;viewerKey=paired ? "ds_"+String(repeating:"b",count:64):"";deviceID=paired ? "session_"+SecureStub.family:"";backendTrust=nil;ready=paired;revoked=false
         testPersist={_,_,_,_ in SecureRuntime.saves += 1}
     }
+    fileprivate func testTrusted(){backendTrust=BackendTrust(backendId:SecureStub.id,certificateSha256:String(repeating:"a",count:64));origin=URL(string:"https://192.168.1.2:18101")}
+    fileprivate var savedPin:String? {backendTrust?.certificateSha256}
     fileprivate var pairedSecure:Bool{backendTrust != nil && origin?.scheme=="https"}
 }
 @main struct SecureRuntime {
@@ -35,7 +38,7 @@ extension CourtlineSessionBroker {
     if purpose=="enroll"{j["enrollmentKey"]="en_"+String(repeating:"c",count:64)}
     modifications.forEach{j[$0.key]=$0.value};return String(data:try! JSONSerialization.data(withJSONObject:j),encoding:.utf8)!
  }
- static func fresh(_ paired:Bool=false)->CourtlineSessionBroker {SecureStub.seen=[];SecureStub.pending=nil;SecureStub.hold=false;SecureStub.wrongID=false;SecureStub.reject=false;saves=0;let b=CourtlineSessionBroker();b.testSetup(paired);return b}
+ static func fresh(_ paired:Bool=false)->CourtlineSessionBroker {SecureStub.seen=[];SecureStub.pending=nil;SecureStub.hold=false;SecureStub.wrongID=false;SecureStub.reject=false;SecureStub.wrongFamily=false;saves=0;let b=CourtlineSessionBroker();b.testSetup(paired);return b}
  static func main(){
     PinnedBackendRequest.testProtocols=[SecureStub.self]
     check(SecureBackendQR(qr()) != nil,"migration parses")
@@ -77,6 +80,16 @@ extension CourtlineSessionBroker {
     do {let b=fresh();var failed=false;b.enroll(qr()){failed=$0 != nil};check(failed && SecureStub.seen.isEmpty,"unpaired migration denied")}
     do {let b=fresh(true);var failed=false;b.enroll(qr("enroll")){failed=$0 != nil};check(failed && SecureStub.seen.isEmpty,"registered enrollment no duplicates")}
     do {let b=fresh();var finished=false;b.enroll(qr("enroll")){check($0==nil,"new enroll succeeds");finished=true};wait{finished};check(b.pairedSecure && b.role=="viewer" && saves==1,"new enrolled Companion");check(SecureStub.seen[1].value(forHTTPHeaderField:"X-Courtline-Key")?.hasPrefix("en_")==true,"enrollment credential scoped")}
+    let renewed=qr("migrate",["certificateSha256":String(repeating:"b",count:64)])
+    do {let b=fresh(true);b.testTrusted();var denied=false;b.enroll(renewed){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty && b.savedPin==String(repeating:"a",count:64),"renewal requires explicit confirmation")
+        let confirmation=b.certificateReplacement(renewed);check(confirmation != nil,"same ID renewal prompts")
+        var finished=false;b.enroll(renewed,confirmedReplacement:confirmation){check($0==nil,"confirmed renewal succeeds");finished=true};wait{finished};check(saves==1 && b.savedPin==String(repeating:"b",count:64) && SecureStub.seen.count==2,"renewal retains family and commits pin after verification")
+    }
+    do {let b=fresh(true);b.testTrusted();let other=qr("migrate",["backendId":SecureStub.family,"certificateSha256":String(repeating:"b",count:64)]);check(b.certificateReplacement(other)==nil,"different Backend cannot use renewal");var denied=false;b.enroll(other){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty,"different Backend no credential")}
+    do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);b.setForeground(false);b.setForeground(true);var denied=false;b.enroll(renewed,confirmedReplacement:confirmation){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty && saves==0,"background invalidates renewal confirmation")}
+    do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);let altered=qr("migrate",["certificateSha256":String(repeating:"c",count:64)]);var denied=false;b.enroll(altered,confirmedReplacement:confirmation){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty,"confirmation bound to exact QR")}
+    do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);SecureStub.wrongID=true;var finished=false;b.enroll(renewed,confirmedReplacement:confirmation){check($0 != nil,"renewed endpoint wrong ID rejected");finished=true};wait{finished};check(saves==0 && SecureStub.seen.count==1 && b.savedPin==String(repeating:"a",count:64),"wrong renewed ID receives no credential")}
+    do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);SecureStub.wrongFamily=true;var finished=false;b.enroll(renewed,confirmedReplacement:confirmation){check($0 != nil,"different family rejected");finished=true};wait{finished};check(saves==0 && b.savedPin==String(repeating:"a",count:64),"different family cannot commit new trust")}
     print("PASS \(checks) secure QR and broker fake-network checks; real TLS/mDNS/device testing still required")
  }
 }
