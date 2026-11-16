@@ -1,6 +1,6 @@
 {
   "validationOnly": true,
-  "filename": "Courtline-iPad-v1.0.8-NativeCheck1.zip",
-  "sha256": "5f1bd37ed97af79833fd3b78dcd0fa23e1bbab774f28efae7cd6997119b71582",
-  "stage": "preliminary108-native-and-runtime"
+  "filename": "Courtline-iPad-v1.0.8-Widget-Parity.zip",
+  "sha256": "cb776e3a4aaaa23e2efb91e3124f7a91312ce32257785f5d95579fc64235b568",
+  "stage": "exact-final108-25-swift-runtime-checks"
 }

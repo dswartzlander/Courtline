@@ -24,6 +24,7 @@ extension CourtlineSessionBroker {
         network=URLSession(configuration:configuration,delegate:self,delegateQueue:nil)
     }
     fileprivate func widgetTestInvalidate(){clearControl()}
+    fileprivate func widgetTestExpireAction(){actionUptime={ProcessInfo.processInfo.systemUptime+26}}
 }
 @main struct WidgetRuntime {
     static let widget="https://app.scoreholio.com/overlay?account=test&game=game&court=1"
@@ -33,19 +34,20 @@ extension CourtlineSessionBroker {
         let url=request.url!
         if url.host=="10.0.0.2",url.path=="/api/control-settings" {return (200,data(["lock":["enabled":true,"revision":"test-revision"],"sections":["vmix":["value":["address":host]]]]))}
         if url.host=="10.0.0.2",url.path=="/api/live" {return (200,data(["courts":Array(repeating:["stale":false,"error":""] as [String:Any],count:4),"snapshot":["vmixAddress":host,"courts":Array(repeating:["kind":"assigned","widgetUrl":widget],count:4)]]))}
-        if url.host=="10.0.0.3",url.path=="/api/" {return (200,Data("OK".utf8))}
-        fatalError("Unexpected fake request")
+        if url.host=="10.0.0.3",["/api","/api/"].contains(url.path) {return (200,Data("OK".utf8))}
+        fatalError("Unexpected fake request: "+url.absoluteString)
     }
-    static func run(_ label:String,main:Bool=true,locked:Bool=false,input:String="Input & Name",address:String=host,url:String=widget,pre:(CourtlineSessionBroker)->Void={_ in},canSend:@escaping()->Bool={true},response:((URLRequest)->(Int,Data))?=nil,expectSend:Bool,expectStatus:Int?=nil) {
+    static func run(_ label:String,main:Bool=true,locked:Bool=false,input:String="Input & Name",address:String=host,url:String=widget,pre:(CourtlineSessionBroker)->Void={_ in},canSend:@escaping()->Bool={true},response:((URLRequest)->(Int,Data))?=nil,expectSend:Bool,expectStatus:Int?=nil,expectError:String?=nil) {
         WidgetStub.lock.lock();WidgetStub.seen=[];WidgetStub.handler=response ?? defaultResponse;WidgetStub.lock.unlock()
         let broker=CourtlineSessionBroker();broker.widgetTestSetup(main:main,locked:locked);let stamp=broker.stamp;pre(broker)
-        var complete=false;var result:[String:Any]?
-        broker.sendWidget(slot:0,input:input,widget:url,candidate:address,stamp:stamp,canSend:canSend){value,_ in result=value;complete=true}
+        var complete=false;var result:[String:Any]?;var returnedError:Error?
+        broker.sendWidget(slot:0,input:input,widget:url,candidate:address,stamp:stamp,canSend:canSend){value,error in result=value;returnedError=error;complete=true}
         let until=Date().addingTimeInterval(0.7)
         while !complete && Date()<until {_ = RunLoop.main.run(mode:.default,before:Date().addingTimeInterval(0.01))}
         let sends=WidgetStub.requests().filter{$0.url?.host=="10.0.0.3"}
         precondition(sends.count==(expectSend ? 1:0),label+" wrong mutation count")
         if let status=expectStatus {precondition(result?["status"] as? Int==status,label+" wrong status")}
+        if let text=expectError{precondition(returnedError?.localizedDescription.contains(text)==true,label+" missing truthful error")}
         for request in sends {
             precondition(request.httpMethod=="GET" && request.value(forHTTPHeaderField:"X-Courtline-Key")==nil,label+" credential leak")
             let q=URLComponents(url:request.url!,resolvingAgainstBaseURL:false)!.queryItems!
@@ -93,6 +95,18 @@ extension CourtlineSessionBroker {
         run("role revoked during preflight denied",pre:{currentBroker=$0},response:{r in
             if r.url!.path=="/api/control-settings"{DispatchQueue.main.async{currentBroker?.widgetTestInvalidate()}};return defaultResponse(r)
         },expectSend:false)
+        var timedBroker:CourtlineSessionBroker?
+        run("action deadline elapsed before mutation denied",pre:{timedBroker=$0},response:{r in
+            if r.url!.path=="/api/control-settings"{DispatchQueue.main.async{timedBroker?.widgetTestExpireAction()}};return defaultResponse(r)
+        },expectSend:false)
+        var slowLiveBroker:CourtlineSessionBroker?
+        run("deadline during live preflight denied",pre:{slowLiveBroker=$0},response:{r in
+            if r.url!.path=="/api/live"{DispatchQueue.main.async{slowLiveBroker?.widgetTestExpireAction()}};return defaultResponse(r)
+        },expectSend:false)
+        var lateReplyBroker:CourtlineSessionBroker?
+        run("late command reply is uncertain and not retried",pre:{lateReplyBroker=$0},response:{r in
+            if r.url!.host=="10.0.0.3"{DispatchQueue.main.async{lateReplyBroker?.widgetTestExpireAction()}};return defaultResponse(r)
+        },expectSend:true,expectError:"may have been sent")
         let broker=CourtlineSessionBroker();var redirectAllowed=true
         broker.urlSession(URLSession.shared,task:URLSession.shared.dataTask(with:URL(string:host)!),willPerformHTTPRedirection:HTTPURLResponse(url:URL(string:host)!,statusCode:302,httpVersion:nil,headerFields:nil)!,newRequest:URLRequest(url:URL(string:"https://example.com")!)){redirectAllowed=$0 != nil}
         precondition(!redirectAllowed,"redirect must be refused");print("PASS redirect delegate rejects redirect")
