@@ -9,11 +9,23 @@ private final class HealthStub:URLProtocol {
   if let code=Self.errorCode {client?.urlProtocol(self,didFailWithError:NSError(domain:NSURLErrorDomain,code:code,userInfo:[NSLocalizedDescriptionKey:"secret-token-url"]));return}
   let response=HTTPURLResponse(url:request.url!,statusCode:Self.status,httpVersion:nil,headerFields:["Set-Cookie":"secret"] )!
   client?.urlProtocol(self,didReceive:response,cacheStoragePolicy:.notAllowed)
+  client?.urlProtocolDidFinishLoading(self)
  }
  override func stopLoading() {}
 }
 extension ConnectionDiagnostics {
  fileprivate func testSetup(){configuration={let c=URLSessionConfiguration.ephemeral;c.protocolClasses=[HealthStub.self];return c}}
+ fileprivate func testReentrantHeader()->String {
+   var result="";completion={result=$0}
+   let c=URLSessionConfiguration.ephemeral;c.protocolClasses=[HealthStub.self]
+   let session=URLSession(configuration:c),task=session.dataTask(with:URL(string:"http://10.0.0.2:3999/api/health")!)
+   let response=HTTPURLResponse(url:task.originalRequest!.url!,statusCode:401,httpVersion:nil,headerFields:nil)!
+   self.urlSession(session,dataTask:task,didReceive:response){disposition in
+     precondition(disposition == .cancel)
+     self.urlSession(session,task:task,didCompleteWithError:NSError(domain:NSURLErrorDomain,code:NSURLErrorCancelled))
+   }
+   session.invalidateAndCancel();return result
+ }
  fileprivate func testRedirect()->String {
    var result="";completion={result=$0}
    let c=URLSessionConfiguration.ephemeral;c.protocolClasses=[HealthStub.self]
@@ -46,6 +58,7 @@ extension ConnectionDiagnostics {
   for code in [-1009,-1004,-1001,-1022]{run("transport "+String(code),error:code)}
   for bad in ["https://example.com","http://127.0.0.1:8","http://user:pass@10.0.0.2","http://10.0.0.2/path","http://10.0.0.2?key=secret","http://10.0.0.2#secret"]{precondition(ConnectionDiagnostics.origin(bad)==nil)}
   print("PASS six unsafe origins rejected")
+  let h=ConnectionDiagnostics();precondition(h.testReentrantHeader().hasPrefix("HTTP 401"));print("PASS reentrant cancel preserves HTTPstatus")
   let d=ConnectionDiagnostics();precondition(d.testRedirect().contains("redirect refused"));print("PASS redirect refused")
   run("bounded deadline",pending:true)
   let identity=ConnectionDiagnostics.identity();precondition(identity.contains("Bundle:") && identity.contains("Executable UUID:") && identity.contains("Local Network description:"));print("PASS bounded identity fields")
