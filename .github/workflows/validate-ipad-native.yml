@@ -68,3 +68,17 @@ jobs:
           xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/HealthRuntime.swift" -o "$RUNNER_TEMP/HealthRuntime"
           python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/HealthRuntime"],check=True,timeout=60)'
           echo 'Credential-free health and executable-identity checks passed with fake transport only; not physical iPad or LAN testing.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify lifecycle baseline red and candidate green with fake transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          export SDKROOT="$SDK"
+          python3 -c 'import pathlib,hashlib,zipfile,os; p=pathlib.Path("updates/ios-validation/Courtline-iPad-v1.0.11-Connection-Inspector-Final2.zip"); assert hashlib.sha256(p.read_bytes()).hexdigest()=="cc1c94627a6097530cd23610a02c6b7e5e089cdbe46d5d143fd6cf718fbac5c4"; pathlib.Path(os.environ["RUNNER_TEMP"]+"/BaselineBroker.swift").write_bytes(zipfile.ZipFile(p).read("Courtline-iPad.swiftpm/CourtlineSessionBroker.swift"))'
+          cat "$RUNNER_TEMP/BaselineBroker.swift" updates/ios-validation/LifecycleRuntime.swift > "$RUNNER_TEMP/LifecycleBaseline.swift"
+          xcrun --sdk macosx swiftc -swift-version 5 -D BASELINE -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/LifecycleBaseline.swift" -o "$RUNNER_TEMP/LifecycleBaseline"
+          python3 -c 'import os,subprocess; r=subprocess.run([os.environ["RUNNER_TEMP"]+"/LifecycleBaseline"],capture_output=True,text=True,timeout=60); print(r.stdout); print(r.stderr); assert r.returncode==1 and "RED: inactive admission starts enrollment HTTP" in r.stderr'
+          cat "$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm/CourtlineSessionBroker.swift" updates/ios-validation/LifecycleRuntime.swift > "$RUNNER_TEMP/LifecycleCandidate.swift"
+          xcrun --sdk macosx swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/LifecycleCandidate.swift" -o "$RUNNER_TEMP/LifecycleCandidate"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/LifecycleCandidate"],check=True,timeout=90)'
+          echo 'Exact baseline reproduced lifecycle regression; exact candidate passed fake lifecycle runtime checks. No physical iPad, production LAN or successful Keychain writes tested.' >> "$GITHUB_STEP_SUMMARY"
