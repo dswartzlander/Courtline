@@ -2,5 +2,5 @@
   "validationOnly": true,
   "filename": "Courtline-iPad-v1.0.11-Connection-Inspector.zip",
   "sha256": "6737e93b4e38700525e20b54ec11a081ca9bdbbc5de2ad6ec556c8cbbaf217ef",
-  "stage": "exact-final111-57-swift-runtime-checks"
+  "stage": "exact111-health-failure-diagnostic"
 }

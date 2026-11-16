@@ -34,6 +34,7 @@ extension ConnectionDiagnostics {
   precondition(HealthStub.seen.count==1)
   let req=HealthStub.seen[0];precondition(req.httpMethod=="GET" && req.url!.path=="/api/health" && URLComponents(url:req.url!,resolvingAgainstBaseURL:false)!.query==nil)
   precondition(req.httpBody==nil && req.value(forHTTPHeaderField:"X-Courtline-Key")==nil && req.value(forHTTPHeaderField:"Cookie")==nil && req.value(forHTTPHeaderField:"Authorization")==nil)
+  FileHandle.standardError.write(Data(("HEALTH RESULT "+label+": "+result!+"\n").utf8))
   precondition(!result!.contains("secret"))
   if pending {precondition(result!.hasPrefix("Deadline reached"))}
   else if let code=error {precondition(result!.contains("NSURLErrorDomain "+String(code)))}
