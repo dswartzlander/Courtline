@@ -1,6 +1,1 @@
-{
-  "validationOnly": true,
-  "filename": "Courtline-iPad-v1.0.12-SecureDiscovery-Check.zip",
-  "sha256": "33ca922c2911502a129a7decae2d9ca6c61c402c3c513c15987cf591e37e1f58",
-  "stage": "secure-discovery-certificate-diagnostic"
-}
+{"validationOnly":true,"filename":"Courtline-iPad-v1.0.12-SecureDiscovery-Check.zip","sha256":"33ca922c2911502a129a7decae2d9ca6c61c402c3c513c15987cf591e37e1f58","stage":"production-certificate-diagnostic"}
