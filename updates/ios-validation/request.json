@@ -1,6 +1,6 @@
 {
   "validationOnly": true,
-  "filename": "Courtline-iPad-v1.0.7-NativeCheck2.zip",
-  "sha256": "1fa42d781a1262ff71940f175215bf3d18378e7fc09b79a00e89a783f86b66cb",
-  "stage": "native-check-2-not-release"
+  "filename": "Courtline-iPad-v1.0.7-NativeCheck4.zip",
+  "sha256": "a63cfcd63008aba25b4099f6dc9cec7538ad143778445a2152ed77a4c8144063",
+  "stage": "native-compile-candidate-4"
 }
