@@ -2,8 +2,10 @@
 // URLProtocol replaces ALL HTTP; never contacts a LAN or persists Keychain data.
 private final class SecureStub:URLProtocol {
     static var seen:[URLRequest]=[]
+    static var bodies:[Data]=[]
     static var pending:SecureStub?
     static var hold=false
+    static var holdRecovery=false
     static var wrongID=false
     static var reject=false
     static var wrongFamily=false
@@ -11,7 +13,8 @@ private final class SecureStub:URLProtocol {
     static let family="22222222-2222-4222-8222-222222222222"
     override class func canInit(with request:URLRequest)->Bool{true}
     override class func canonicalRequest(for request:URLRequest)->URLRequest{request}
-    override func startLoading(){Self.seen.append(request);if Self.hold{Self.pending=self}else{respond()}}
+    override func startLoading(){Self.seen.append(request);
+        if let data=request.httpBody {Self.bodies.append(data)} else if let stream=request.httpBodyStream {stream.open();defer{stream.close()};var data=Data();var buffer=[UInt8](repeating:0,count:1024);while stream.hasBytesAvailable{let count=stream.read(&buffer,maxLength:buffer.count);if count<=0{break};data.append(contentsOf:buffer.prefix(count))};Self.bodies.append(data)} else {Self.bodies.append(Data())};if Self.hold || (Self.holdRecovery && request.url?.path=="/api/device-session"){Self.pending=self}else{respond()}}
     override func stopLoading(){}
     func respond(){
         let identity=request.url!.path=="/api/server-identity"
@@ -25,6 +28,7 @@ extension CourtlineSessionBroker {
         origin=paired ? URL(string:"http://192.168.1.2:18100"):nil;viewerKey=paired ? "ds_"+String(repeating:"b",count:64):"";deviceID=paired ? "session_"+SecureStub.family:"";backendTrust=nil;ready=paired;revoked=false
         testPersist={_,_,_,_ in SecureRuntime.saves += 1}
     }
+    fileprivate func testStorageFailure(){testPersist={_,_,_,_ in throw NSError(domain:"TestStorage",code:1)}}
     fileprivate func testTrusted(){backendTrust=BackendTrust(backendId:SecureStub.id,certificateSha256:String(repeating:"a",count:64));origin=URL(string:"https://192.168.1.2:18101")}
     fileprivate var savedPin:String? {backendTrust?.certificateSha256}
     fileprivate var pairedSecure:Bool{backendTrust != nil && origin?.scheme=="https"}
@@ -36,9 +40,10 @@ extension CourtlineSessionBroker {
  static func qr(_ purpose:String="migrate",_ modifications:[String:Any]=[:])->String {
     var j:[String:Any]=["type":"courtline-secure","version":1,"purpose":purpose,"backendId":SecureStub.id,"origin":"https://192.168.1.2:18101","certificateSha256":String(repeating:"a",count:64)]
     if purpose=="enroll"{j["enrollmentKey"]="en_"+String(repeating:"c",count:64)}
+    if purpose=="recover"{j["recoveryKey"]="rc_"+String(repeating:"d",count:64);j["sessionId"]=SecureStub.family;j["deviceName"]="Test tablet"}
     modifications.forEach{j[$0.key]=$0.value};return String(data:try! JSONSerialization.data(withJSONObject:j),encoding:.utf8)!
  }
- static func fresh(_ paired:Bool=false)->CourtlineSessionBroker {SecureStub.seen=[];SecureStub.pending=nil;SecureStub.hold=false;SecureStub.wrongID=false;SecureStub.reject=false;SecureStub.wrongFamily=false;saves=0;let b=CourtlineSessionBroker();b.testSetup(paired);return b}
+ static func fresh(_ paired:Bool=false)->CourtlineSessionBroker {SecureStub.seen=[];SecureStub.bodies=[];SecureStub.pending=nil;SecureStub.hold=false;SecureStub.holdRecovery=false;SecureStub.wrongID=false;SecureStub.reject=false;SecureStub.wrongFamily=false;saves=0;let b=CourtlineSessionBroker();b.testSetup(paired);return b}
  static func main(){
     PinnedBackendRequest.testProtocols=[SecureStub.self]
     check(SecureBackendQR(qr()) != nil,"migration parses")
@@ -90,6 +95,23 @@ extension CourtlineSessionBroker {
     do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);let altered=qr("migrate",["certificateSha256":String(repeating:"c",count:64)]);var denied=false;b.enroll(altered,confirmedReplacement:confirmation){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty,"confirmation bound to exact QR")}
     do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);SecureStub.wrongID=true;var finished=false;b.enroll(renewed,confirmedReplacement:confirmation){check($0 != nil,"renewed endpoint wrong ID rejected");finished=true};wait{finished};check(saves==0 && SecureStub.seen.count==1 && b.savedPin==String(repeating:"a",count:64),"wrong renewed ID receives no credential")}
     do {let b=fresh(true);b.testTrusted();let confirmation=b.certificateReplacement(renewed);SecureStub.wrongFamily=true;var finished=false;b.enroll(renewed,confirmedReplacement:confirmation){check($0 != nil,"different family rejected");finished=true};wait{finished};check(saves==0 && b.savedPin==String(repeating:"a",count:64),"different family cannot commit new trust")}
+    check(SecureBackendQR(qr("recover")) != nil,"recovery QR parses")
+    for edits:[String:Any] in [["sessionId":"bad"],["recoveryKey":"rc_short"],["enrollmentKey":"en_"+String(repeating:"a",count:64)]] {check(SecureBackendQR(qr("recover",edits))==nil,"malformed recovery rejected")}
+    do {let b=fresh();var denied=false;b.enroll(qr("recover")){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty,"recovery requires explicit confirmation")}
+    for paired in [false,true] {let b=fresh(paired);let text=qr("recover");let confirmation=b.recoveryConfirmation(text);check(confirmation != nil,"recovery confirmation available")
+        var done=false;b.enroll(text,confirmedRecovery:confirmation){check($0==nil,"recovery succeeds");done=true};wait{done}
+        check(saves==1 && b.ready && b.role=="viewer" && !b.unlocked,"recovery commits Companion only")
+        check(SecureStub.seen.count==2 && SecureStub.seen[0].value(forHTTPHeaderField:"X-Courtline-Key")==nil,"recovery identity first without key")
+        check(SecureStub.seen[1].value(forHTTPHeaderField:"X-Courtline-Key")?.hasPrefix("rc_")==true,"recovery uses only scoped ticket")
+        let body=try! JSONSerialization.jsonObject(with:SecureStub.bodies[1]) as! [String:Any]
+        check(body["action"] as? String=="recover" && body["name"]==nil,"recovery action does not rename or reenroll")
+    }
+    do {let b=fresh();let text=qr("recover"),confirmation=b.recoveryConfirmation(qr("recover"));b.setForeground(false);b.setForeground(true);var denied=false;b.enroll(text,confirmedRecovery:confirmation){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty,"recovery confirmation invalidated by background")}
+    do {let b=fresh();let confirmation=b.recoveryConfirmation(qr("recover"));var denied=false;b.enroll(qr("recover",["sessionId":SecureStub.id]),confirmedRecovery:confirmation){denied=$0 != nil};check(denied && SecureStub.seen.isEmpty,"confirmation bound to target QR")}
+    for wrongIdentity in [false,true] {let b=fresh(true);let text=qr("recover");SecureStub.wrongID=wrongIdentity;SecureStub.wrongFamily = !wrongIdentity;var done=false;b.enroll(text,confirmedRecovery:b.recoveryConfirmation(text)){check($0 != nil,"recovery mismatch rejected");done=true};wait{done};check(saves==0 && SecureStub.seen.count==(wrongIdentity ? 1:2),"recovery mismatch never commits")}
+    do {let b=fresh();let text=qr("recover");SecureStub.reject=true;var done=false;b.enroll(text,confirmedRecovery:b.recoveryConfirmation(text)){check($0 != nil,"recovery denied");done=true};wait{done};check(saves==0,"rejected recovery not saved")}
+    do {let b=fresh(true);b.testStorageFailure();let text=qr("recover");var done=false;b.enroll(text,confirmedRecovery:b.recoveryConfirmation(text)){check($0?.localizedDescription.contains("could not be saved")==true,"storage failure explains recovery uncertainty");done=true};wait{done};check(saves==0 && !b.pairedSecure,"storage failure leaves old pairing")}
+    for resume in [false,true] {let b=fresh(true);let text=qr("recover");SecureStub.holdRecovery=true;var done=false;b.enroll(text,confirmedRecovery:b.recoveryConfirmation(text)){check($0?.localizedDescription.contains("may have completed")==true,"post-dispatch interruption explains uncertainty");done=true};wait{SecureStub.pending != nil};check(SecureStub.seen.count==2,"recovery POST dispatched");b.setForeground(false);if resume{b.setForeground(true)};wait{done};check(saves==0 && !b.pairedSecure,"post-dispatch cancellation cannot commit")}
     print("PASS \(checks) secure QR and broker fake-network checks; real TLS/mDNS/device testing still required")
  }
 }
