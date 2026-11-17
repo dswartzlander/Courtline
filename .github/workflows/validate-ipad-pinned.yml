@@ -40,3 +40,11 @@ jobs:
           xcrun swiftc -swift-version 5 -D COURTLINE_TESTING -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/PinnedRuntime.swift" -o "$RUNNER_TEMP/SecureRuntime"
           python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/SecureRuntime"],check=True,timeout=90)'
           echo 'Exact shipping source SDK typecheck/link and fake-network Swift tests passed; no physical TLS, Bonjour, iPad or Playgrounds runtime test.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Test public diagnostic context filtering
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          ROOT="$RUNNER_TEMP/courtline-pinned-test/CourtLine-Pinned-Test.swiftpm"
+          xcrun swiftc -swift-version 5 -parse-as-library -sdk "$SDK" "$ROOT/LANOrigin.swift" "$ROOT/SafeDiagnosticContext.swift" updates/ios-pinned-validation/ContextRuntime.swift -o "$RUNNER_TEMP/ContextRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/ContextRuntime"],check=True,timeout=30)'
