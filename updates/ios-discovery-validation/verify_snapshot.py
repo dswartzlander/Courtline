@@ -28,3 +28,17 @@ with zipfile.ZipFile(archive) as z:
     z.extractall(root)
 print('Verified source snapshot SHA-256:', expected)
 print('Native validation only; no source scripts or package plugins are executed.')
+
+# Validate exact embedded runtime resources, not just editable Web sources.
+import base64
+package = root / 'Courtline-iPad.swiftpm'
+source = (package / 'CourtlineResources.swift').read_text()
+pairs = re.findall(r'        "([^"/]+)": """\n(.*?)\n        """', source, re.S)
+assert pairs and len(pairs) == len(dict(pairs)), 'Missing or duplicate embedded resources'
+embedded = {name: base64.b64decode(''.join(value.split()), validate=True) for name, value in pairs}
+expected = {p.name: p.read_bytes() for p in (package / 'Web').iterdir() if p.is_file()}
+assert embedded.keys() == expected.keys(), 'Embedded resource inventory mismatch'
+for name, content in embedded.items():
+    assert content == expected[name], 'Embedded/source mismatch: ' + name
+assert b'const verification=' in embedded['courtline-options.js'], 'Missing diagnostic verification renderer'
+print('PASS exact embedded/Web byte parity:', len(embedded), 'resources')
