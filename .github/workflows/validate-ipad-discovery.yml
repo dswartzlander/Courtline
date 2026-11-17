@@ -40,3 +40,12 @@ jobs:
           xcrun swiftc -swift-version 5 -D COURTLINE_TESTING -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/SecureRuntime.swift" -o "$RUNNER_TEMP/SecureRuntime"
           python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/SecureRuntime"],check=True,timeout=90)'
           echo 'Exact shipping source SDK typecheck/link and fake-network Swift tests passed; no physical TLS, Bonjour, iPad or Playgrounds runtime test.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Test safe verification error details
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="$(xcrun --sdk macosx --show-sdk-path)"
+          ROOT="$RUNNER_TEMP/courtline-ipad-native/Courtline-iPad.swiftpm"
+          cat "$ROOT/SecureBackend.swift" "$ROOT/CourtlineSessionBroker.swift" updates/ios-discovery-validation/VerificationDetailRuntime.swift > "$RUNNER_TEMP/VerificationDetailRuntime.swift"
+          xcrun swiftc -swift-version 5 -D COURTLINE_TESTING -parse-as-library -sdk "$SDK" "$RUNNER_TEMP/VerificationDetailRuntime.swift" -o "$RUNNER_TEMP/VerificationDetailRuntime"
+          python3 -c 'import os,subprocess; subprocess.run([os.environ["RUNNER_TEMP"]+"/VerificationDetailRuntime"],check=True,timeout=90)'
