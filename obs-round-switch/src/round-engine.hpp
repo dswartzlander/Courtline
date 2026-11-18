@@ -24,7 +24,10 @@ public:
    if (state != State::Running || value < 0) return false;
    if (!round) { round = value; return false; }
    if (value == *round) return false;
-   if (value != *round + 1) { baseline(); round = value; return false; }
+   // Without an explicit match identity a rollback could be a replay. Require
+   // Start rather than allowing old rounds to trigger a second time.
+   if (value < *round) { stop(); return false; }
+   if (value - *round != 1) { baseline(); round = value; return false; }
    round = value;
    // Backlog is unsafe on air: preserve at most one switch in flight.
    if (!due.empty()) { due.clear(); return false; }
