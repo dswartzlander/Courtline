@@ -1,0 +1,86 @@
+name: OBS Round Switch candidate
+on:
+  push:
+    branches: [obs-round-demo-candidate]
+    paths: ['obs-round-switch/**', '.github/workflows/obs-round-demo.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 35
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare official pinned plugin template
+        run: |
+          git clone https://github.com/obsproject/obs-plugintemplate.git work
+          git -C work checkout 3e7d7ac3b5342cd7d9b88890b9c70b472d1520fc
+          Copy-Item obs-round-switch/src/* work/src -Force
+          New-Item work/tests -ItemType Directory -Force
+          Copy-Item obs-round-switch/tests/engine-test.cpp work/tests
+          Copy-Item obs-round-switch/CMakeLists.txt work/CMakeLists.txt -Force
+          $spec = Get-Content work/buildspec.json -Raw | ConvertFrom-Json
+          $spec.name = 'courtline-round-demo'
+          $spec.displayName = 'CourtLine Round Switch Demo'
+          $spec.version = '0.1.0'
+          $spec.author = 'CourtLine'
+          $spec.website = 'https://github.com/dswartzlander/Courtline'
+          $spec.email = ''
+          $spec | ConvertTo-Json -Depth 10 | Set-Content work/buildspec.json
+      - name: Compile Windows native plugin and test
+        working-directory: work
+        run: |
+          cmake --preset windows-x64 -DENABLE_FRONTEND_API=ON -DENABLE_QT=ON
+          if ($LASTEXITCODE) { throw 'Configure failed' }
+          cmake --build build_x64 --config RelWithDebInfo --parallel 4
+          if ($LASTEXITCODE) { throw 'Build failed' }
+          ctest --test-dir build_x64 -C RelWithDebInfo --output-on-failure
+          if ($LASTEXITCODE) { throw 'Tests failed' }
+      - name: Prepare clean portable OBS for integration test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download 31.1.1 -R obsproject/obs-studio -p '*Windows-x64.zip' -D .
+          $zip = Get-ChildItem '*Windows-x64.zip' | Select-Object -First 1
+          if (!$zip) { throw 'OBS ZIP missing' }
+          Expand-Archive $zip.FullName portable
+          New-Item portable/portable_mode.txt -ItemType File
+          New-Item portable/obs-plugins/64bit -ItemType Directory -Force
+          Copy-Item work/build_x64/RelWithDebInfo/courtline-round-demo.dll portable/obs-plugins/64bit
+      - name: Run native OBS integration checks in isolated profile
+        run: |
+          $env:COURTLINE_OBS_DEMO_SELFTEST = Join-Path $PWD 'native-obs-result.txt'
+          $process = Start-Process (Join-Path $PWD 'portable/bin/64bit/obs64.exe') -ArgumentList '--portable','--multi','--disable-updater','--disable-missing-files-check' -WorkingDirectory (Join-Path $PWD 'portable/bin/64bit') -PassThru
+          if (!$process.WaitForExit(120000)) { Stop-Process -Id $process.Id; throw 'OBS smoke test timed out' }
+          if (!(Test-Path native-obs-result.txt)) { throw 'OBS did not produce a self-test result' }
+          $result = Get-Content native-obs-result.txt -Raw
+          Write-Output $result
+          if (!$result.StartsWith('PASS:')) { throw 'Native integration failed' }
+      - name: Package installable candidate
+        run: |
+          New-Item package/obs-plugins/64bit -ItemType Directory -Force
+          Copy-Item work/build_x64/RelWithDebInfo/courtline-round-demo.dll package/obs-plugins/64bit
+          Copy-Item obs-round-switch/README.md package/README.md
+          Copy-Item work/LICENSE package/LICENSE
+          Copy-Item native-obs-result.txt package/VALIDATION.txt
+          Compress-Archive package/* CourtLine-OBS-Round-Demo-0.1.0-windows-x64.zip
+          Get-FileHash CourtLine-OBS-Round-Demo-0.1.0-windows-x64.zip | Format-List | Out-File SHA256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CourtLine-OBS-Round-Demo-0.1.0-windows-x64
+          path: |
+            CourtLine-OBS-Round-Demo-0.1.0-windows-x64.zip
+            SHA256.txt
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: OBS-demo-validation-logs
+          path: |
+            native-obs-result.txt
+            portable/config/obs-studio/logs/**
+            work/build_x64/Testing/Temporary/LastTest.log
